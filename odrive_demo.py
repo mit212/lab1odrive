@@ -203,6 +203,7 @@ class Odrive:
 
 
     def startup_init(self):
+        print('Initializing encoder calibration sequence')
         self.axis1.requested_state = AXIS_STATE_IDLE
         time.sleep(1)
         self.axis1.requested_state = AXIS_STATE_ENCODER_INDEX_SEARCH
