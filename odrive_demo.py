@@ -26,13 +26,16 @@ in2m = in2mm/1000
 
 Nm2A = 0.00000604 
 
+#In this python script, there is skeleton code for how you may use the class at some point.
+#There will be additional updates to this driver to make it easier to use for you in the future.
+
 class Odrive:
     def __init__(self,usb_serial,axis_num):
+        
         self.usb_serials=usb_serial
         self.axis_num = axis_num
         self.axis1 = axis_num
         self.axis1 = None
-        self.offsets = [[[-8.59,-6.11],[-3.61,5.89]]]
         self.zeroVec = [[[0,0],[0,0]]]
         self.thtDesired = [[[0,0],[0,0]]]
         self.velDesired = [[[0,0],[0,0]]]
@@ -45,23 +48,11 @@ class Odrive:
 
         self.CPR2RAD = (2*math.pi/400000)
         self.connect_all()
+        self.startup_init()
         self.set_gains(kp = 0.1, kd = 0.0001)
-        #self.full_init()
-
-
-    def rad2Count(self,angle):
-        try:
-            return [100000-ang/self.CPR2RAD for ang in angle]
-        except TypeError:
-            return 100000-angle/self.CPR2RAD
-
-    def count2Rad(self,count):
-        try:
-            return [(100000-cnt)*self.CPR2RAD for cnt in count]
-        except TypeError:
-            return (100000-count)*self.CPR2RAD
 
     def connect_all(self):
+        #Connects to odrives of specified serial ids
         print("Finding odrive: " + self.usb_serials+ "...")
 
         odrv = odrive.find_any(serial_number = self.usb_serials)
@@ -74,14 +65,7 @@ class Odrive:
         elif self.axis_num == 0:
             self.axis1 = odrv.axis1
 
-    def get_cnt(self):
-        positions = 0
-        positions = self.axis1.encoder.pos_estimate
-        return positions
-
-    def get_rad_all(self):
-        return count2Rad(get_cnt_all(self))
-
+    #Error checking print functions
     def print_controllers(self):
         print(self.axis1.controller)
 
@@ -108,24 +92,21 @@ class Odrive:
 
 
     def reboot(self):
-
+        #Reboot and reconnect function
         self.odrv.reboot()
         time.sleep(5)
         connect_all()
         print('Rebooted ')
 
     def trajMoveCnt(self,posDesired = 10000, velDesired = 50000, accDesired = 50000):
-
+        #Move to a position with a specified trajectory
         self.axis1.trap_traj.config.vel_limit = velDesired 
         self.axis1.trap_traj.config.accel_limit = accDesired 
         self.axis1.trap_traj.config.decel_limit = accDesired
         self.axis1.controller.move_to_pos(posDesired)
 
-
-    def trajMoveRad(self,posDesired = 0, velDesired = 2*pi/8, accDesired = 2*pi/8):
-        trajMoveCnt(self,rad2Count(posDesired), rad2Count(velDesired), rad2Count(accDesired))
-
     def pos_test_one(self, amt = 400000, mytime = 5):
+        #Used for the position test
         print('Changing modes to position control.')
         self.axis1.requested_state = AXIS_STATE_IDLE
 
@@ -153,6 +134,7 @@ class Odrive:
 
 
     def vel_test_one(self, amt = 400000, mytime = 5):
+        #Used for the velocity test
         self.axis1.requested_state = AXIS_STATE_IDLE
         print('Changing modes to velocity control.')
         self.axis1.controller.config.control_mode = CTRL_MODE_VELOCITY_CONTROL
@@ -182,6 +164,7 @@ class Odrive:
 
 
     def traj_test_one(self, amt = 400000, vel_limit = 100000, accel_limit = 10000, mytime = 10):
+        #Used for the trajectory test
         self.axis1.requested_state = AXIS_STATE_IDLE
         print('Changing modes to trajectory control.')
 
@@ -212,50 +195,23 @@ class Odrive:
         self.axis1.requested_state = AXIS_STATE_IDLE
 
     def erase_and_reboot(self):
+        #Erase the configuration of the system and reboots
         print('erasing config')
         self.odrv.erase_configuration()
         print('reboot')
         self.odrv.reboot()
 
 
-    def startup_init(self, verbose = False):
-        if(verbose == True):
-            print("Startup Init")
-            self.axis1.requested_state = AXIS_STATE_IDLE
-            time.sleep(5)
-            self.printErrorStates()
-            print('axis state idle')
-            self.axis1.requested_state = AXIS_STATE_ENCODER_INDEX_SEARCH
-            time.sleep(10)
-            self.printErrorStates()
-            print('index search')
-            self.axis1.requested_state = AXIS_STATE_ENCODER_OFFSET_CALIBRATION
-            time.sleep(20)
-            self.printErrorStates()
-            print('offset calibration')
-            self.axis1.requested_state = AXIS_STATE_IDLE
-            time.sleep(10)
-            self.printErrorStates()
-            print('axis state idle')
-            self.axis1.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
-            time.sleep(5)
-            self.printErrorStates()
-            print('closed loop control')
-
-            print('Startup Init Completed')
-            self.initflag=1
-        else:
-            self.axis1.requested_state = AXIS_STATE_IDLE
-            time.sleep(5)
-            self.axis1.requested_state = AXIS_STATE_ENCODER_INDEX_SEARCH
-            time.sleep(10)
-            self.axis1.requested_state = AXIS_STATE_ENCODER_OFFSET_CALIBRATION
-            time.sleep(20)
-            self.axis1.requested_state = AXIS_STATE_IDLE
-            time.sleep(10)
-            self.axis1.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
-            time.sleep(5)
-            self.initflag=1
+    def startup_init(self):
+        self.axis1.requested_state = AXIS_STATE_IDLE
+        time.sleep(1)
+        self.axis1.requested_state = AXIS_STATE_ENCODER_INDEX_SEARCH
+        time.sleep(10)
+        self.axis1.requested_state = AXIS_STATE_ENCODER_OFFSET_CALIBRATION
+        time.sleep(10)
+        self.axis1.requested_state = AXIS_STATE_IDLE
+        time.sleep(1)
+        self.initflag=1
 
     def full_init(self,reset = True):
         self.printErrorStates()
@@ -320,14 +276,6 @@ class Odrive:
     def set_closed_loop_state(self):
         self.axis1.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
 
-    def test_traj_pos(self):
-        self.pos_test_one()
-
-    def test_traj_vel(self):
-        self.vel_test_one()
-
-    def test_traj(self):
-        self.traj_test_one()
 
 if __name__ == '__main__':
     serial_id = str(raw_input('Type in the serial number for your ODrive: \n'))
@@ -347,13 +295,13 @@ if __name__ == '__main__':
 
     print('The motor driver has completed connection and calibration. It is ready to run.')
     raw_input('Press enter to drive the motor in position mode.')
-    motor_driver.test_traj_pos()
+    motor_driver.pos_test_one()
 
     raw_input('Press enter to drive the motor in velocity mode.')
-    motor_driver.test_traj_vel()
+    motor_driver.vel_test_one()
 
     raw_input('Press enter to drive the motor in a specific trajectory.')
-    motor_driver.test_traj()
+    motor_driver.traj_test_one()
 
     print('That concludes this demonstration. Feel free to look at the code that makes up this demonstration.')
 
