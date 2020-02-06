@@ -63,7 +63,7 @@ class Odrive:
         if self.axis_num == 1:
             self.axis1 = odrv.axis1
         elif self.axis_num == 0:
-            self.axis1 = odrv.axis1
+            self.axis1 = odrv.axis0
 
     #Error checking print functions
     def print_controllers(self):
